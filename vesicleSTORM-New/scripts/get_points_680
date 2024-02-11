@@ -1,0 +1,87 @@
+
+import numpy as np
+import pandas as pd
+from glob import glob
+import functions as fcts
+from scipy.spatial import KDTree
+import os
+import re
+
+
+#target_dir =  filedialog.askdirectory()
+target_dir = '/Volumes/Seagate/Elisa_STORM/HRP/Good'
+filename = 'storm_data_HRP_test' 
+
+#name of the widefield image in each folder. 
+widefield_image = ''
+
+#folder path in which to find the demixed storm files.
+#Old data is CellZone, new data is Acquisition
+glob_folder_pattern = '*/Acquisition*/*emix'
+
+#what to match the files by to create the dataframe. If you want to use all the files in the directory, leave as an empty string.
+match = ''
+
+#update lists for markers and DIVs
+markers = ['spon647', 'dep647', 'sponhrp680', 'dephrp680']
+DIVs = ['6DIV', '8DIV', '10DIV', '13DIV']
+
+
+params = fcts.get_default_params()
+
+storm_data = pd.DataFrame(columns = ['FileName', 
+                                     'Date', 
+                                     '647nm', 
+                                     '680nm', 
+                                     'DIV', 
+                                     'Acquisition', 
+                                     'ROI label', 
+                                     'ROI', 
+                                     'points', 
+                                     #'points_680',
+                                     'centroid',
+                                     'NN_647_to_680', 
+                                     'NN_647_to_680_ind',
+                                     'NN_647_to_647',
+                                     'centroid_dist_647_to_680',
+                                     'volume', 
+                                     'spherecity'])
+
+
+
+# usable_exp = pd.read_csv('/users/isabellegarnreiter/documents/vesicleSTORM/data/STORM_binary_list.csv',encoding='latin', sep=',').to_numpy()
+# filename  = usable_exp[:,0]+'_'+usable_exp[:,1]
+# files_infos = dict(zip(filename, usable_exp[:,2:]))
+
+
+date_pattern = re.compile(r'^\d')
+        
+i = 0
+
+nb_points_647 = []
+nb_points_680 = []
+
+for folder in os.listdir(target_dir):
+    folder_path = os.path.join(target_dir, folder)
+    # Check if folder is a directory and if the name starts with a date
+    if os.path.isdir(folder_path) and re.compile(r'^\d').match(folder) and match in folder:
+        print(folder)
+
+        Demix_folders = glob(folder_path + glob_folder_pattern)
+        for demix in Demix_folders:
+            if os.path.isdir(demix):
+                #MAKE SURE YOU HAVE THE RIGHT CHANNEL HERE AS WELL.
+                channel1 = glob(demix + '*/*w1*.csv')[0]
+                channel2 = glob(demix + '*/*w2*.csv')[0]
+                data_in_680 = pd.read_csv(channel2)[['x [nm]', 'y [nm]', 'z [nm]']].to_numpy(dtype=np.float64)
+                data_in_680[:,2] +=550
+
+            points_647_file = os.path.join(demix, 'data/', 'points_647.npy')
+            clusters_647_file = os.path.join(demix, 'data/', 'clusters_647.npy')
+            points_647 = np.load(points_647_file, allow_pickle=True)[()]
+            clusters_647 = np.load(clusters_647_file, allow_pickle=True)[()]
+
+            points_680_file = os.path.join(demix, 'data/', 'points_680.npy')
+            clusters_680_file = os.path.join(demix, 'data/', 'clusters_680.npy')
+            points_680 = np.load(points_680_file, allow_pickle=True)[()]
+            clusters_680 = np.load(clusters_680_file, allow_pickle=True)[()]
